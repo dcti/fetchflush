@@ -11,7 +11,7 @@
 #    
 
 use strict;
-require MIME::Parser;
+use MIME::Parser;
 require MIME::Entity;
 require MIME::Base64;          # only indirectly needed
 require MIME::QuotedPrint;     # only indirectly needed
@@ -27,7 +27,7 @@ my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own 'From' e-mail address.
-my $serveraddress = 'help@distributed.net';
+my $serveraddress = 'blocks-bounces@distributed.net';
 
 # Default options
 my $keyserver = 'us.v27.distributed.net';
@@ -130,7 +130,7 @@ sub LimitInstances ($$)
 my $parser = new MIME::Parser;
 $parser->parse_nested_messages('REPLACE');
 $parser->output_dir($tmpdir);
-$parser->output_prefix("flush");
+#$parser->output_prefix("flush");
 $parser->output_to_core('ALL');
 $parser->extract_uuencode(1);
 
@@ -222,8 +222,15 @@ for (my $part = 0; $part < $num_parts; $part++)
 		my $first = 1;
 		while ($IO->read($buffer,10240)) {
 		    if ($first) {
+			# determine if this is a Win32 executable (virus/worm)
+			if ($buffer =~ m/^MZ/) {
+			    print STDERR "$$: ignoring Win32 executable.\n";
+			    exit 0;
+			}
+
 			# determine if the buffer was created by a v2.9 client.
 			$is_v29 = ($buffer =~ m/^\x83\xB6\x34\x1A/s);
+
 			$first = 0;
 		    }
 		    $bufferfilesize += syswrite OUTBUFF,$buffer;
