@@ -27,7 +27,7 @@ my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own "from" email address.
-my $serveraddress = 'help@distributed.net';
+my $serveraddress = 'blocks-bounces@distributed.net';
 
 # Constants to control the behavior of fetching.
 my $maxfetch = 20000;		# client upper limit 
@@ -259,7 +259,7 @@ sub LimitInstances ($$)
 my $parser = new MIME::Parser;
 $parser->parse_nested_messages('REPLACE');
 $parser->output_dir($tmpdir);
-$parser->output_prefix("fetch");
+#$parser->output_prefix("fetch");
 $parser->output_to_core('ALL');
 
 
