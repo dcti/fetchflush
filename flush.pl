@@ -18,6 +18,13 @@ require MIME::QuotedPrint;     # only indirectly needed
 require Mail::Send;            # only indirectly needed
 require IO::Stringy;           # only indirectly needed
 
+#require MIME::Decoder::UU;
+#$decoder = new MIME::Decoder 'x-uuencode' or die "unsupported";
+#$decoder->decode(\*STDIN, \*STDOUT);
+#/^begin\s*(\d*)\s*(\S*)/; 
+
+
+
 
 # explicitly set our path to untaint it
 $ENV{'PATH'} = '/bin:/usr/bin';
@@ -37,7 +44,7 @@ my $basedir = '/home/bovine/fetchflush';
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
 my $year4 = ($year > 80 ? $year + 1900 : $year + 2000);
 my $month = sprintf("%02d", $mon + 1);
-my $logfile = "$basedir/flush-$year4-$month.log";
+my $logfile = "$basedir/logs/flush-$year4-$month.log";
 open( STDERR, ">>$logfile" );
 
 
@@ -51,9 +58,13 @@ overcome any network errors.
 Buffer files must be attached to your message using MIME Base64
 encoding.  They must be called "buff-out.rc5" and/or "buff-out.des".
 
-Note that blocks saved to buffer files with version 6401 clients will
-not be associated with your email, but will be associated with the
-email of the client they are flushed from!  Upgrade your clients!
+The email address specified in your client's configuration will be
+used when giving credit to flushed blocks (not to the email address
+that you are emailing this message from).
+
+However, don't send blocks from version 2.6401 clients here if you
+want credit.  Due to a bug in that single client version, the email
+address is not stored within the blocks.  Upgrade your clients!
 
 Other than the attachments, the contents of any messages sent to
 flush\@distributed.net are ignored.  If you encounter problems with
