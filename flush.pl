@@ -23,21 +23,16 @@ require IO::Stringy;           # only indirectly needed
 #$decoder->decode(\*STDIN, \*STDOUT);
 #/^begin\s*(\d*)\s*(\S*)/; 
 
-
-
-
 # explicitly set our path to untaint it
 $ENV{'PATH'} = '/bin:/usr/bin';
 my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own address
-my $serveraddress = 'rc5help';
-
+my $serveraddress = 'help';
 
 # Default options
-my $rc5server = 'us.v27.distributed.net';
-
+my $rc5server = '209.98.32.14';
 
 # Redirect our stderr
 my $basedir = '/home/blocks/fetchflush';
@@ -47,16 +42,16 @@ my $month = sprintf("%02d", $mon + 1);
 my $logfile = "$basedir/logs/flush-$year4-$month.log";
 open( STDERR, ">>$logfile" );
 
-
 # Our standard message
 my $greeting = <<EOM;
 This message has been sent to you because you sent mail to
-flush\@distributed.net.  The attached is the output of "rc5des -flush"
+flush\@distributed.net.  The attached is the output of "dnetc -flush"
 using your buffer files.  Three attempts are made, in an attempt to
 overcome any network errors.
 
 Buffer files must be attached to your message using MIME Base64
-encoding.  They must be called "buff-out.rc5" and/or "buff-out.des".
+encoding.  They must be called "buff-out.xxx", according to the contest
+you are flushing
 
 The email address specified in your client's configuration will be
 used when giving credit to flushed blocks (not to the email address
@@ -68,7 +63,7 @@ address is not stored within the blocks.  Upgrade your clients!
 
 Other than the attachments, the contents of any messages sent to
 flush\@distributed.net are ignored.  If you encounter problems with
-this service, please send email to rc5help\@distributed.net
+this service, please send email to help\@distributed.net
 EOM
 
 
@@ -76,7 +71,7 @@ EOM
 # Construct our parser object
 my $parser = new MIME::Parser;
 $parser->parse_nested_messages('REPLACE');
-$parser->output_dir("/tmp");
+$parser->output_dir("/tmp/blocks");
 $parser->output_prefix("flush");
 $parser->output_to_core('ALL');
 
@@ -137,7 +132,7 @@ for (my $part = 0; $part < $num_parts; $part++)
 	my $IO = $body->open("r");
 	if ($IO)
 	{
-	    my $bodypath = "/tmp/flush".$$."-".$part;
+	    my $bodypath = "/tmp/blocks/flush-".$$."-".$part;
 	    if (open(OUTBUFF, ">$bodypath"))
 	    {
 		my $buffer;
@@ -153,11 +148,16 @@ for (my $part = 0; $part < $num_parts; $part++)
 	    my $bodyfullpath = $bodypath.".rc5";
 	    rename $bodypath, $bodyfullpath;
 
-	    open(SUB, "$basedir/rc5des -outbase $bodypath -flush -a $rc5server |");
+	    open(SUB, "$basedir/dnetc -outbase $bodypath -flush -a $rc5server |");
 	    $/ = undef;
 	    $results .= <SUB>;
 	    close SUB;
-	    unlink $bodyfullpath;
+#	    my @filelist = glob '$bodypath.*';
+#	    unlink @filelist;
+	    unlink $bodypath.".rc5";
+	    unlink $bodypath.".des";
+	    unlink $bodypath.".ogr";
+	    unlink $bodypath.".csc";
 	}
 	else
 	{
@@ -185,7 +185,11 @@ if ( !$results || $results !~ m|\S+| )
 else
 {
     my $gotcount = 0;
-    if ( $results =~ m|Sent (\d+) packets \((\S+) work units\) to server|is ) {
+    if ( $results =~ m|Sent (\d+) packets \((\S+) work|is ) {
+        print STDERR "$$: Block flushing of $1 blocks ($2 workunits) complete.\n";
+        $gotcount = 1;
+    }
+    if ( $results =~ m|Sent (\d+) packet \((\S+) work|is ) {
         print STDERR "$$: Block flushing of $1 blocks ($2 workunits) complete.\n";
         $gotcount = 1;
     }
