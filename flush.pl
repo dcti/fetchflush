@@ -33,6 +33,8 @@ my $serveraddress = 'help';
 
 # Default options
 my $rc5server = '209.98.32.14';
+#my $rc5server = '130.161.38.8';
+#my $rc5server = 'us.v27.distributed.net';
 
 # Redirect our stderr
 my $basedir = '/home/blocks/fetchflush';
@@ -51,7 +53,7 @@ overcome any network errors.
 
 Buffer files must be attached to your message using MIME Base64
 encoding.  They must be called "buff-out.xxx", according to the contest
-you are flushing
+you are flushing.
 
 The email address specified in your client's configuration will be
 used when giving credit to flushed blocks (not to the email address
@@ -148,16 +150,28 @@ for (my $part = 0; $part < $num_parts; $part++)
 	    my $bodyfullpath = $bodypath.".rc5";
 	    rename $bodypath, $bodyfullpath;
 
-	    open(SUB, "$basedir/dnetc -outbase $bodypath -flush -a $rc5server |");
+	    my $clientlog = "/tmp/blocks/log-".$$;
+
+	    open(SUB, "$basedir/dnetc -outbase $bodypath -flush -a $rc5server -l $clientlog |");
 	    $/ = undef;
-	    $results .= <SUB>;
+	    my $subresults .= <SUB>;
+            $subresults =~ /Setting out-buffer base name to \/tmp\/blocks\/flush-/;
+            $' =~ /-/;
+            $results .= "\nFlush ID is ".$`;
 	    close SUB;
+
+	    open(LOG, $clientlog);
+            $/ = undef;
+            $results .= <LOG>;
+            close LOG;
+
 #	    my @filelist = glob '$bodypath.*';
 #	    unlink @filelist;
 	    unlink $bodypath.".rc5";
 	    unlink $bodypath.".des";
 	    unlink $bodypath.".ogr";
 	    unlink $bodypath.".csc";
+	    unlink $clientlog;
 	}
 	else
 	{
@@ -199,7 +213,6 @@ else
     SendMessage($sender, "Distributed.Net Block Flusher Results",
 		"Flush completed with output.  The results are shown ".
 		"at the bottom of this message.\n\n" .
-                "INSTRUCTIONS FOLLOW:\n$greeting\n\n".
 		"RESULTS FOLLOW:\n$results\nEOF.");
 }
 print STDERR "$$: Exiting\n";

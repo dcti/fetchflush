@@ -30,7 +30,7 @@ my $serveraddress = 'help';
 
 # Set the default fetch values
 my $rc5server = '209.98.32.14'; #nodezero
-
+#my $rc5server = 'us.v27.distributed.net';
 
 my $fetchcount = 0;
 my $fetchcontest = "rc5.ini";
@@ -51,24 +51,35 @@ open( STDERR, ">>$logfile" );
 my $greeting = <<EOM;
 This message has been sent to you because you sent mail
 to fetch\@distributed.net.  The attached is the output of
-"dnetc -fetch".  The attached buffers default to
-blocks of 2^31 keys. You need to specify your own
-numblocks directive, to specify how many blocks you want,
-though. Three "-fetch" attempts are made, in an attempt 
-to overcome any network errors.
+"dnetc -fetch".
 
-Include "numblocks=yyyy" anywhere in your message.  
-'yyyy' may be any number from 1 to 500.
+Include "numblocks=yyyy" anywhere in the body of
+your message. Note that the client may impose an
+upperlimit of the number of workunits you can
+request in 1 fetch.
 
-To request blocks of a different size, include
-"blocksize=xx" anywhere in your message (subject or body).
-'xx' is any number from 28 to 33.
+To specify a preferred blocksize, include 
+"blocksize=xx" anywhere in the body of your mesasage,
+"xx" being between 28 and 33.
 
-To request CSC keys, include "contest=CSC" anywhere in 
-your message.
+To request OGR keys, include "contest=OGR" anywhere in 
+the body of your message. Default is RC5.
 
 Other than these flags, the contents of any messages sent
 to fetch\@distributed.net are ignored.
+
+The attached buffers contain approximately the number of
+workunits you requested by the keyword "numblocks"
+Note that now, numblocks does not indicate number of blocks
+of packets, but workunits. This can mean you actually get
+less packets/blocks, since blocks can contain multiple
+workunits. This makes the behavior of the keyword 
+"blocksize" a little different, since this this keyword
+doesn't influence the number of workunits you get.
+
+Three "-fetch" attempts are made, in an attempt to
+overcome any network errors.
+
 EOM
 
 
@@ -187,15 +198,23 @@ $filebasename =~ s/.$suffix//;
 # Execute the actual fetch sequence
 print STDERR "$$: Starting request (count=$fetchcount, contest=$fetchcontest, blocksize=$fetchblocksize)\n";
 chdir $basedir;
-open(SUB, "$basedir/dnetc -ini $fetchcontest -inbase $filebasename -b $suffix $fetchcount -blsize $suffix $fetchblocksize -a $rc5server -fetch |");
+my $clientlog = '/tmp/blocks-log'.$$;
+open(SUB, "$basedir/dnetc -ini $fetchcontest -inbase $filebasename -b $suffix $fetchcount -blsize $suffix $fetchblocksize -a $rc5server -l $clientlog -fetch |");
 $/ = undef;
 $results = <SUB>;
 close SUB;
 
+open (LOG, $clientlog);
+$/ = undef;
+$results = <LOG>;  # this overwrites previous $results, which is OK.
+close LOG;
+
+unlink $clientlog;
 
 #
 # Filter out the warning message.
-$results =~ s/Warning: Bad buffer file header. Truncating file to zero blocks.//;
+$results =~ s#Truncating buffer file '/tmp/blocks/fetch-#Fetch ID is '#g;
+$results =~ s#to zero packets. \(bad header\)##g;
 
 
 #
