@@ -1,4 +1,4 @@
-#!/usr/bin/perl -Tw
+#!/usr/local/bin/perl5 -T
 
 # Distributed.net e-mail block fetcher
 #    Jeff Lawson <jlawson@bovine.net>
@@ -24,6 +24,7 @@ my $serveraddress = 'rc5help\@distributed.net';
 
 
 # Set the default fetch values
+my $rc5server = '205.149.163.211';   # rc5.best.net
 my $fetchcount = 0;
 my $fetchcontest = 1;        # 1=rc5, 2=des
 my $fetchblocksize = 30;     # blocksize (28-31)
@@ -161,7 +162,7 @@ chmod 0666, $filename;          # sigh
 # Execute the actual fetch sequence
 print STDERR "$$: Starting request (count=$fetchcount, contest=$fetchcontest, blocksize=$fetchblocksize)\n";
 chdir $basedir;
-open(SUB, "$basedir/rc5des -in $filename -percentoff -b $fetchcount -blsize $fetchblocksize -processdes 0 -p 127.0.0.1 -fetch |");
+open(SUB, "$basedir/rc5des -in $filename -percentoff -b $fetchcount -blsize $fetchblocksize -processdes 0 -p $rc5server -fetch |");
 $/ = undef;
 $results = <SUB>;
 close SUB;
@@ -250,7 +251,7 @@ sub SendMessage
 	Subject => $subject,
 	Data => $body;
 
-    if (!open(MAIL, "| /usr/bin/sendmail -t -i"))
+    if (!open(MAIL, "| /usr/sbin/sendmail -t -i"))
     {
         print STDERR "Unable to launch sendmail.\n";
 	exit 0;
@@ -283,7 +284,7 @@ sub SendMessageAttachment
 	Type => "application/binary-stream",
 	Encoding => "base64";
 
-    if (!open(MAIL, "| /usr/bin/sendmail -t -i"))
+    if (!open(MAIL, "| /usr/sbin/sendmail -t -i"))
     {
         print STDERR "Unable to launch sendmail.\n";
 	exit 0;

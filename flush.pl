@@ -1,4 +1,4 @@
-#!/usr/bin/perl -Tw
+#!/usr/local/bin/perl5 -T
 
 # Distributed.net e-mail block flusher
 #    Jeff Lawson <jlawson@bovine.net>
@@ -20,6 +20,10 @@ umask 002;
 
 # Set our own address
 my $serveraddress = 'rc5help\@distributed.net';
+
+
+# Default options
+my $rc5server = '205.149.163.211';   # rc5.best.net
 
 
 # Redirect our stderr
@@ -116,7 +120,7 @@ for (my $part = 0; $part < $num_parts; $part++)
 
 	chdir $basedir;
 	chmod 0666, $bodypath;    # sigh...
-	open(SUB, "$basedir/rc5des -out $bodypath -percentoff -processdes 0 -flush |");
+	open(SUB, "$basedir/rc5des -out $bodypath -percentoff -processdes 0 -flush -p $rc5server |");
 	$/ = undef;
 	$results .= <SUB>;
 	close SUB;
@@ -187,7 +191,7 @@ sub SendMessage
         Subject => $subject,
         Data => $body;
 
-    if (!open(MAIL, "| /usr/bin/sendmail -t -i"))
+    if (!open(MAIL, "| /usr/sbin/sendmail -t -i"))
     {
         print STDERR "Unable to launch sendmail.\n";
     }
