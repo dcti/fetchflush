@@ -25,11 +25,13 @@ my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own address
-my $serveraddress = 'rc5help';
+my $serveraddress = 'help';
 
 
 # Set the default fetch values
-my $rc5server = 'us.v27.distributed.net';
+my $rc5server = '209.98.32.14'; #nodezero
+
+
 my $fetchcount = 0;
 my $fetchcontest = "rc5.ini";
 my $suffix = "rc5";
@@ -178,11 +180,14 @@ chmod 0666, $filename;          # sigh
 my $filebasename = $filename;
 $filebasename =~ s/.$suffix//;
 
+# $suffix contains "rc5" or the like
+# $fetchcontest contains "rc5.ini" or the like
+
 #
 # Execute the actual fetch sequence
 print STDERR "$$: Starting request (count=$fetchcount, contest=$fetchcontest, blocksize=$fetchblocksize)\n";
 chdir $basedir;
-open(SUB, "$basedir/dnetc -ini $fetchcontest -inbase $filebasename -b $fetchcount -blsize $fetchblocksize -a $rc5server -fetch |");
+open(SUB, "$basedir/dnetc -ini $fetchcontest -inbase $filebasename -b $suffix $fetchcount -blsize $suffix $fetchblocksize -a $rc5server -fetch |");
 $/ = undef;
 $results = <SUB>;
 close SUB;
@@ -206,7 +211,11 @@ if ( $results !~ m|\S+| )
 else
 {
     my $gotcount = 0;
-    if ( $results =~ m|Retrieved (\d+) packets \((\S+) work units\) from server|is ) {
+    if ( $results =~ m|Retrieved (\d+) packets \((\S+) work |is ) {
+        print STDERR "$$: Retrieved $1 blocks ($2 work units) from server\n";
+        $gotcount = 1;
+    }
+    if ( $results =~ m|Retrieved (\d+) packet \((\S+) work |is ) {
         print STDERR "$$: Retrieved $1 blocks ($2 work units) from server\n";
         $gotcount = 1;
     }
