@@ -40,7 +40,7 @@ my $basedir = '/home/bovine/fetchflush';
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
 my $year4 = ($year > 80 ? $year + 1900 : $year + 2000);
 my $month = sprintf("%02d", $mon + 1);
-my $logfile = "$basedir/fetch-$year4-$month.log";
+my $logfile = "$basedir/logs/fetch-$year4-$month.log";
 open( STDERR, ">>$logfile" );
 
 
