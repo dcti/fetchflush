@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5 -T
+#!/usr/bin/perl5 -T
 
 # Distributed.net e-mail block flusher
 #    Jeff Lawson <jlawson@bovine.net>
@@ -11,11 +11,18 @@
 #    
 
 use strict;
+use lib '/usr/local/lib/perl5/site_perl/5.005';
 require MIME::Parser;
 require MIME::Entity;
+require MIME::Base64;          # only indirectly needed
+require MIME::QuotedPrint;     # only indirectly needed
+require Mail::Send;            # only indirectly needed
+require IO::Stringy;           # only indirectly needed
+
 
 # explicitly set our path to untaint it
 $ENV{'PATH'} = '/bin:/usr/bin';
+my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own address
@@ -67,14 +74,16 @@ if (!$entity ) {
     my $sender = &FindSender($parser->last_head);
     if (! $sender) {
         print STDERR "$$: Couldn't parse or find sender's address\n";
-	exit 1;
+	print STDERR "$$: Exiting\n";
+	exit 0;
     }
     SendMessage($sender, "Distributed.Net Block Flusher Failure",
 		"We could not parse your message.  Perhaps it wasn't ".
 		"a MIME encapsulated message?\n\n".
                 "INSTRUCTIONS FOLLOW:\n$greeting\nEOF.");
     print STDERR "$$: Couldn't parse MIME stream from $sender\n";
-    exit 1;
+    print STDERR "$$: Exiting\n";
+    exit 0;
 }
 $entity->make_multipart;
 
@@ -88,10 +97,11 @@ chomp $subject;
 my $sender = &FindSender($entity->head);
 if (! $sender) { 
     print STDERR "$$: Could not find sender's email address.\n";
-    exit 1;
+    print STDERR "$$: Exiting\n";
+    exit 0;
 }
 my $nowstring = gmtime;
-print STDERR "$$: Processing message from $sender at $nowstring\n";
+print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
 
 
 # Iterate through all of the parts
@@ -158,7 +168,7 @@ else
                 "INSTRUCTIONS FOLLOW:\n$greeting\n\n".
 		"RESULTS FOLLOW:\n$results\nEOF.");
 }
-
+print STDERR "$$: Exiting\n";
 exit 0;
 
 
@@ -191,11 +201,12 @@ sub SendMessage
         Subject => $subject,
         Data => $body;
 
-    if (!open(MAIL, "| /usr/sbin/sendmail -t -i"))
+    if (!open(MAIL, "| $sendmail -t -i"))
     {
-        print STDERR "Unable to launch sendmail.\n";
+        print STDERR "$$: Unable to launch sendmail.\n";
     }
     $top->print(\*MAIL);
     close MAIL;
+    print STDERR "$$: Sent mail to $addressee\n";
 }
 

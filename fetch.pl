@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl5 -T
+#!/usr/bin/perl5 -T
 
 # Distributed.net e-mail block fetcher
 #    Jeff Lawson <jlawson@bovine.net>
@@ -11,12 +11,18 @@
 #    
 
 use strict;
+use lib '/usr/local/lib/perl5/site_perl/5.005';
 require MIME::Parser;
 require MIME::Entity;
+require MIME::Base64;          # only indirectly needed
+require MIME::QuotedPrint;     # only indirectly needed
+require Mail::Send;            # only indirectly needed
+require IO::Stringy;           # only indirectly needed
 
 
 # explicitly set our path to untaint it
 $ENV{'PATH'} = '/bin:/usr/bin';
+my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own address
@@ -75,6 +81,7 @@ if (!$entity ) {
     my $sender = &FindSender($parser->last_head);
     if (! $sender) { 
         print STDERR "$$: Could not parse or find sender.\n";
+	print STDERR "$$: Exiting\n";
 	exit 0;
     }
     SendMessage($sender, "Distributed.Net Block Flusher Failure",
@@ -82,6 +89,7 @@ if (!$entity ) {
                 "a MIME encapsulated message?\n\n".
 		"INSTRUCTIONS FOLLOW:\n$greeting\nEOF.");
     print STDERR "$$: Couldn't parse MIME stream from $sender.\n";
+    print STDERR "$$: Exiting\n";
     exit 0;
 }
 $entity->make_multipart;
@@ -97,10 +105,11 @@ chomp $subject;
 my $sender = &FindSender($entity->head);
 if (! $sender) { 
     print STDERR "$$: Could not find sender.\n";
+    print STDERR "$$: Exiting\n";
     exit 0;
 }
 my $nowstring = gmtime;
-print STDERR "$$: Processing message from $sender at $nowstring\n";
+print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
 
 
 # Iterate through all of the parts
@@ -109,7 +118,7 @@ my $num_parts = $entity->parts;
 for (my $part = 0; $part < $num_parts; $part++)
 {
     # Get the body, as a MIME::Body;
-    my $body = $entity->parts($part);
+    my $body = $entity->parts($part) || next;
     my $mime_type     = $body->head->mime_type;
     my $mime_encoding = $body->head->mime_encoding;
 
@@ -124,7 +133,9 @@ for (my $part = 0; $part < $num_parts; $part++)
     }
 
     # Delete the files for any external (on-disk) data:
-    $body->bodyhandle->purge;    
+    if ($body->bodyhandle) {
+	$body->bodyhandle->purge;    
+    }
 }
 
 #
@@ -137,6 +148,7 @@ if ( $fetchcount < 1 )
 	"request should specify the number of blocks that you would like, ".
 	"via the 'numblocks' keyword.\n\n".
 	"INSTRUCTIONS FOLLOW:\n$greeting\nEOF.");
+    print STDERR "$$: Exiting\n";
     exit 0;
 }
 
@@ -151,6 +163,7 @@ if ( !open(TOUCH,">$filename") )
     	"There was a problem generating a temporary filename for the ".
 	"processing of your request.  If the problem persists, please ".
 	"contact us so that we can look into resolving the issue.");
+    print STDERR "$$: Exiting\n";
     exit 0;
 }
 close(TOUCH);
@@ -194,6 +207,7 @@ else
 	"RESULTS FOLLOW:\n$results\nEOF.\n", $filename, "buff-in.rc5");
 }
 unlink $filename;
+print STDERR "$$: Exiting\n";
 exit 0;
 
 
@@ -251,22 +265,25 @@ sub SendMessage
 	Subject => $subject,
 	Data => $body;
 
-    if (!open(MAIL, "| /usr/sbin/sendmail -t -i"))
+    if (!open(MAIL, "| $sendmail -t -i"))
     {
-        print STDERR "Unable to launch sendmail.\n";
+        print STDERR "$$: Unable to launch sendmail.\n";
 	exit 0;
     }
     $top->print(\*MAIL);
     close MAIL;
+    print STDERR "$$: Sent mail to $addressee\n";
 }
 
 sub SendMessageAttachment
 {
-    my $addressee = shift;
-    my $subject = shift;
-    my $body = shift;
-    my $attachfile = shift;
-    my $attachname = shift;
+    my $addressee = shift || "";
+    my $subject = shift || "";
+    my $body = shift || "";
+    my $attachfile = shift || undef;
+    my $attachname = shift || undef;
+
+    print STDERR "$$: Starting attachment message\n";
 
     my $top = build MIME::Entity
 	Type => "multipart/mixed",
@@ -278,18 +295,34 @@ sub SendMessageAttachment
 	Type => "text/plain",
 	Data => $body;
 
-    attach $top 
-	Path => $attachfile,
-	Filename => $attachname,
-	Type => "application/binary-stream",
-	Encoding => "base64";
-
-    if (!open(MAIL, "| /usr/sbin/sendmail -t -i"))
+    if (defined $attachfile && defined $attachname)
     {
-        print STDERR "Unable to launch sendmail.\n";
+	attach $top 
+	    Path => $attachfile,
+	    Filename => $attachname,
+	    Type => "application/binary-stream",
+	    Encoding => "quoted-printable";
+#	    Encoding => "base64";
+	close(ATTACH);
+    }
+
+    print STDERR "$$: Launching sendmail\n";
+    if (!open(MAIL, "| $sendmail -t -i"))
+    {
+        print STDERR "$$: Unable to launch sendmail.\n";
 	exit 0;
     }
-    $top->print(\*MAIL);
-    close MAIL;
+    print STDERR "$$: Composing message\n";
+    eval {
+	local $SIG{ALRM} = sub { die "alarm\n" };
+	alarm 30;
+	$top->print(\*MAIL);
+	alarm 0;
+    };
+    if ($@) {
+	print STDERR "$$: body generation timed out\n";
+    }
+    close(MAIL);
+    print STDERR "$$: Sent mail to $addressee\n";
 }
 
