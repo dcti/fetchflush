@@ -35,8 +35,8 @@ my $rc5server = '209.98.32.14'; #nodezero
 my $fetchcount = 0;
 my $fetchcontest = "rc5.ini";
 my $suffix = "rc5";
-my $fetchblocksize = 31;     # blocksize (28-33)
-
+my $fetchblocksize = 31;     	# blocksize (28-33)
+my $maxfetch = 20000;		# client upper limit 
 
 # Redirect our stderr
 my $basedir = '/home/blocks/fetchflush';
@@ -243,7 +243,10 @@ else
     }
     SendMessageAttachment($sender, "Distributed.Net Block Fetching Results", 
         "The block fetcher has completed your fetch of $fetchcount ".
-	"requested blocks.  The output of the fetch is shown below:\n\n".
+	"requested blocks.\n\n".
+	"** NOTE: THE REQUESTED WORK IS NOW ALWAYS WORKUNITS, NOT\n".
+	"** PACKETS, REGARDLESS YOUR PREFERRED BLOCKSIZE\n\n".
+	"The output of the fetch is shown below:\n\n".
 	"RESULTS FOLLOW:\n$results\nEOF.\n", $filename, "buff-in.$suffix");
 }
 unlink $filename;
@@ -282,7 +285,7 @@ sub ProcessCommands
     {
 	$fetchcount = int($1);
 	if ($fetchcount < 1) { $fetchcount = 1; }
-	if ($fetchcount > 500) { $fetchcount = 500; }
+	if ($fetchcount > $maxfetch) { $fetchcount = $maxfetch; }
     }
     if ( $text =~ m|contest\s*=\s*(\w+)|is )
     {
