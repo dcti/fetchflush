@@ -17,6 +17,8 @@ require MIME::Base64;          # only indirectly needed
 require MIME::QuotedPrint;     # only indirectly needed
 require Mail::Send;            # only indirectly needed
 require IO::Stringy;           # only indirectly needed
+use IPC::SysV qw(IPC_R IPC_W IPC_CREAT ftok);
+
 
 #require MIME::Decoder::UU;
 #$decoder = new MIME::Decoder 'x-uuencode' or die "unsupported";
@@ -35,6 +37,8 @@ my $serveraddress = 'help';
 my $rc5server = '209.98.32.14';
 #my $rc5server = '130.161.38.8';
 #my $rc5server = 'us.v27.distributed.net';
+my $maxinstances = 6;       # maximum number of instances
+
 
 # Redirect our stderr
 my $basedir = '/home/blocks/fetchflush';
@@ -98,10 +102,6 @@ if (!$entity ) {
 $entity->make_multipart;
 
 
-# Determine the subject
-my $subject = $entity->head->get('Subject', 0) || "";
-chomp $subject;
-
 
 # Determine the sender
 my $sender = &FindSender($entity->head);
@@ -112,6 +112,28 @@ if (! $sender) {
 }
 my $nowstring = gmtime;
 print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
+
+
+#
+# Check for process limits
+eval {
+    &LimitInstances($maxinstances, 44);
+};
+if ($@) {
+    print STDERR "$$: Too many instances running.  Sending back error.\n";
+    SendMessage($sender, "Distributed.Net Block Flusher Failure",
+        "The block flusher is currently undergoing an abnormal amount of ".
+        "activity and is unable to process your request at this time.  ".
+        "Please resend your request in 15 minutes or more and we may be ".
+		"able to handle your request then.\n\nEOF.");
+    print STDERR "$$: Exiting\n";
+    exit 0;
+}
+
+
+# Determine the subject
+my $subject = $entity->head->get('Subject', 0) || "";
+chomp $subject;
 
 
 # Iterate through all of the parts
@@ -257,3 +279,26 @@ sub SendMessage
     print STDERR "$$: Sent mail to $addressee\n";
 }
 
+sub LimitInstances
+{
+    my $maxcopies = shift || 4;      # number of instances to check.
+    my $ipcid = shift || die;        # arbitrary unique 8-bit integer
+
+    my $shmkey = ftok($0, $ipcid) || die "unable to get key";
+    my $shmid = shmget($shmkey, 4 * $maxcopies, IPC_R | IPC_W | IPC_CREAT);
+    die "unable to get memory" if (!defined $shmid);
+
+    for (my $i = 0; $i < $maxcopies; $i++) {
+        my $memraw;
+        shmread($shmid, $memraw, $i * 4, 4) || die "unable to read memory";
+        my $mempid = int(unpack('N',$memraw));
+	if ($mempid =~ m/(\d+)/) { $mempid = $1; } else { $mempid = 0; }
+        if (!$mempid || kill(0, $mempid) <= 0) {
+            # found an empty pid slot
+            $memraw = pack('N', $$);
+            shmwrite($shmid, $memraw, $i * 4, 4) || die "unable to write memory";
+            return 1;    # success
+        }
+    }
+    die "no slots available";
+}
