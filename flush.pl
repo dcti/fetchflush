@@ -160,8 +160,8 @@ for (my $part = 0; $part < $num_parts; $part++)
 	    if (open(OUTBUFF, ">$bodypath"))
 	    {
 		my $buffer;
-		$IO->read($buffer,500000);
-		syswrite OUTBUFF,$buffer,500000;
+		$IO->read($buffer,5000000);
+		syswrite OUTBUFF,$buffer,5000000;
 	    }
 	    undef $IO;
 	    close(OUTBUFF);
