@@ -25,11 +25,11 @@ my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own address
-my $serveraddress = 'rc5help\@distributed.net';
+my $serveraddress = 'rc5help';
 
 
 # Set the default fetch values
-my $rc5server = '127.0.0.1';
+my $rc5server = 'nodezero.distributed.net';
 my $fetchcount = 0;
 my $fetchcontest = 1;        # 1=rc5, 2=des
 my $fetchblocksize = 30;     # blocksize (28-31)
@@ -38,7 +38,7 @@ my $fetchblocksize = 30;     # blocksize (28-31)
 # Redirect our stderr
 my $basedir = '/home/bovine/fetchflush';
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
-my $year4 = ($year > 80 ? $year + 1900 : $year + 2000);
+my $year4 = $year + 1900;        # yes this is y2k safe.
 my $month = sprintf("%02d", $mon + 1);
 my $logfile = "$basedir/logs/fetch-$year4-$month.log";
 open( STDERR, ">>$logfile" );
@@ -103,6 +103,7 @@ chomp $subject;
 &ProcessCommands($subject);
 
 
+#
 # Determine the sender
 my $sender = &FindSender($entity->head);
 if (! $sender) { 
@@ -114,6 +115,7 @@ my $nowstring = gmtime;
 print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
 
 
+#
 # Iterate through all of the parts
 my $results;
 my $num_parts = $entity->parts;
@@ -181,6 +183,11 @@ open(SUB, "$basedir/rc5des -in $filename -percentoff -b $fetchcount -blsize $fet
 $/ = undef;
 $results = <SUB>;
 close SUB;
+
+
+#
+# Filter out the warning message.
+$results =~ s/Warning: Bad buffer file header. Truncating file to zero blocks.//;
 
 
 #
