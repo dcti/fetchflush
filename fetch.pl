@@ -31,7 +31,8 @@ my $serveraddress = 'rc5help';
 # Set the default fetch values
 my $rc5server = 'us.v27.distributed.net';
 my $fetchcount = 0;
-my $fetchcontest = 1;        # 1=rc5, 2=des
+my $fetchcontest = "rc5.ini";
+my $suffix = "rc5";
 my $fetchblocksize = 31;     # blocksize (28-33)
 
 
@@ -48,17 +49,21 @@ open( STDERR, ">>$logfile" );
 my $greeting = <<EOM;
 This message has been sent to you because you sent mail
 to fetch\@distributed.net.  The attached is the output of
-"rc5des -fetch".  The attached buffers default to 100
-blocks of 2^28 keys (or keypairs for DES). Three "-fetch"
-attempts are made, in an attempt to overcome any network
-errors.
+"dnetc -fetch".  The attached buffers default to
+blocks of 2^31 keys. You need to specify your own
+numblocks directive, to specify how many blocks you want,
+though. Three "-fetch" attempts are made, in an attempt 
+to overcome any network errors.
+
+Include "numblocks=yyyy" anywhere in your message.  
+'yyyy' may be any number from 1 to 500.
 
 To request blocks of a different size, include
 "blocksize=xx" anywhere in your message (subject or body).
-To request a buffer file with more or fewer than the default
-(100 blocks), include "numblocks=yyyy" anywhere in your
-message.  'xx' is any number from 28 to 33.  'yyyy' may be
-any number from 1 to 500.
+'xx' is any number from 28 to 33.
+
+To request CSC keys, include "contest=CSC" anywhere in 
+your message.
 
 Other than these flags, the contents of any messages sent
 to fetch\@distributed.net are ignored.
@@ -156,7 +161,7 @@ if ( $fetchcount < 1 )
 
 #
 # Generate the temporary filename
-my $filename = "/tmp/blocks/fetch-".$$.".rc5";
+my $filename = "/tmp/blocks/fetch-".$$.".$suffix";
 if ( !open(TOUCH,">$filename") ) 
 {
     print STDERR "$$: Could not open temporary file ($filename).\n";
@@ -171,13 +176,13 @@ close(TOUCH);
 chmod 0666, $filename;          # sigh
 
 my $filebasename = $filename;
-$filebasename =~ s/.rc5//;
+$filebasename =~ s/.$suffix//;
 
 #
 # Execute the actual fetch sequence
 print STDERR "$$: Starting request (count=$fetchcount, contest=$fetchcontest, blocksize=$fetchblocksize)\n";
 chdir $basedir;
-open(SUB, "$basedir/rc5des -inbase $filebasename -b $fetchcount -blsize $fetchblocksize -a $rc5server -fetch |");
+open(SUB, "$basedir/dnetc -ini $fetchcontest -inbase $filebasename -b $fetchcount -blsize $fetchblocksize -a $rc5server -fetch |");
 $/ = undef;
 $results = <SUB>;
 close SUB;
@@ -211,7 +216,7 @@ else
     SendMessageAttachment($sender, "Distributed.Net Block Fetching Results", 
         "The block fetcher has completed your fetch of $fetchcount ".
 	"requested blocks.  The output of the fetch is shown below:\n\n".
-	"RESULTS FOLLOW:\n$results\nEOF.\n", $filename, "buff-in.rc5");
+	"RESULTS FOLLOW:\n$results\nEOF.\n", $filename, "buff-in.$suffix");
 }
 unlink $filename;
 print STDERR "$$: Exiting\n";
@@ -254,8 +259,10 @@ sub ProcessCommands
     if ( $text =~ m|contest\s*=\s*(\w+)|is )
     {
 	my $contest = lc $1;
-	if ( $contest eq "rc5" ) { $fetchcontest = 1; }
-	elsif ( $contest eq "des" ) { $fetchcontest = 2; }
+	if    ( $contest eq "rc5" ) { $fetchcontest = "rc5.ini"; $suffix="rc5"; }
+	elsif ( $contest eq "des" ) { $fetchcontest = "des.ini"; $suffix="des"; }
+	elsif ( $contest eq "csc" ) { $fetchcontest = "csc.ini"; $suffix="csc"; }
+	elsif ( $contest eq "ogr" ) { $fetchcontest = "ogr.ini"; $suffix="ogr"; }
     }
 }
          
