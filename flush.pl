@@ -32,17 +32,17 @@ my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
 # Set our own address
-my $serveraddress = 'rc5help\@distributed.net';
+my $serveraddress = 'rc5help';
 
 
 # Default options
-my $rc5server = '127.0.0.1';
+my $rc5server = 'nodezero.distributed.net';
 
 
 # Redirect our stderr
 my $basedir = '/home/bovine/fetchflush';
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
-my $year4 = ($year > 80 ? $year + 1900 : $year + 2000);
+my $year4 = $year + 1900;        # yes this is y2k safe.
 my $month = sprintf("%02d", $mon + 1);
 my $logfile = "$basedir/logs/flush-$year4-$month.log";
 open( STDERR, ">>$logfile" );
