@@ -36,11 +36,11 @@ my $serveraddress = 'rc5help';
 
 
 # Default options
-my $rc5server = 'nodezero.distributed.net';
+my $rc5server = 'us.v27.distributed.net';
 
 
 # Redirect our stderr
-my $basedir = '/home/bovine/fetchflush';
+my $basedir = '/home/blocks/fetchflush';
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
 my $year4 = $year + 1900;        # yes this is y2k safe.
 my $month = sprintf("%02d", $mon + 1);
@@ -149,11 +149,15 @@ for (my $part = 0; $part < $num_parts; $part++)
 
 	    chdir $basedir;
 	    chmod 0666, $bodypath;    # sigh...
-	    open(SUB, "$basedir/rc5des -out $bodypath -percentoff -processdes 0 -flush -a $rc5server |");
+
+	    my $bodyfullpath = $bodypath.".rc5";
+	    rename $bodypath, $bodyfullpath;
+
+	    open(SUB, "$basedir/rc5des -outbase $bodypath -flush -a $rc5server |");
 	    $/ = undef;
 	    $results .= <SUB>;
 	    close SUB;
-	    unlink $bodypath;
+	    unlink $bodyfullpath;
 	}
 	else
 	{
@@ -181,8 +185,8 @@ if ( !$results || $results !~ m|\S+| )
 else
 {
     my $gotcount = 0;
-    if ( $results =~ m|Sent (\d+) (\S+) blocks to server|is ) {
-        print STDERR "$$: Block flushing of $1 $2 blocks complete.\n";
+    if ( $results =~ m|Sent (\d+) packets \((\S+) work units\) to server|is ) {
+        print STDERR "$$: Block flushing of $1 blocks ($2 workunits) complete.\n";
         $gotcount = 1;
     }
     if ( ! $gotcount ) {

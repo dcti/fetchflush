@@ -29,14 +29,14 @@ my $serveraddress = 'rc5help';
 
 
 # Set the default fetch values
-my $rc5server = 'nodezero.distributed.net';
+my $rc5server = 'us.v27.distributed.net';
 my $fetchcount = 0;
 my $fetchcontest = 1;        # 1=rc5, 2=des
-my $fetchblocksize = 30;     # blocksize (28-31)
+my $fetchblocksize = 31;     # blocksize (28-33)
 
 
 # Redirect our stderr
-my $basedir = '/home/bovine/fetchflush';
+my $basedir = '/home/blocks/fetchflush';
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
 my $year4 = $year + 1900;        # yes this is y2k safe.
 my $month = sprintf("%02d", $mon + 1);
@@ -57,7 +57,7 @@ To request blocks of a different size, include
 "blocksize=xx" anywhere in your message (subject or body).
 To request a buffer file with more or fewer than the default
 (100 blocks), include "numblocks=yyyy" anywhere in your
-message.  'xx' is any number from 28 to 31.  'yyyy' may be
+message.  'xx' is any number from 28 to 33.  'yyyy' may be
 any number from 1 to 1000.
 
 By default, RC5 blocks are retrieved.  To get DES blocks,
@@ -159,7 +159,7 @@ if ( $fetchcount < 1 )
 
 #
 # Generate the temporary filename
-my $filename = "/tmp/fetch-".$$.".in";
+my $filename = "/tmp/fetch-".$$.".rc5";
 if ( !open(TOUCH,">$filename") ) 
 {
     print STDERR "$$: Could not open temporary file ($filename).\n";
@@ -173,13 +173,14 @@ if ( !open(TOUCH,">$filename") )
 close(TOUCH);
 chmod 0666, $filename;          # sigh
 
-
+my $filebasename = $filename;
+$filebasename =~ s/.rc5//;
 
 #
 # Execute the actual fetch sequence
 print STDERR "$$: Starting request (count=$fetchcount, contest=$fetchcontest, blocksize=$fetchblocksize)\n";
 chdir $basedir;
-open(SUB, "$basedir/rc5des -in $filename -percentoff -b $fetchcount -blsize $fetchblocksize -processdes 0 -a $rc5server -fetch |");
+open(SUB, "$basedir/rc5des -inbase $filebasename -b $fetchcount -blsize $fetchblocksize -a $rc5server -fetch |");
 $/ = undef;
 $results = <SUB>;
 close SUB;
@@ -203,8 +204,8 @@ if ( $results !~ m|\S+| )
 else
 {
     my $gotcount = 0;
-    if ( $results =~ m|Retrieved (\d+) (\S+) blocks from server|is ) {
-        print STDERR "$$: Retrieved $1 $2 blocks from server\n";
+    if ( $results =~ m|Retrieved (\d+) packets \((\S+) work units\) from server|is ) {
+        print STDERR "$$: Retrieved $1 blocks ($2 work units) from server\n";
         $gotcount = 1;
     }
     if ( $gotcount < 1 ) {
