@@ -34,9 +34,9 @@ umask 002;
 my $serveraddress = 'help';
 
 # Default options
-my $rc5server = '209.98.32.14';
+#my $rc5server = '209.98.32.14';   # nodezero
 #my $rc5server = '130.161.38.8';
-#my $rc5server = 'us.v27.distributed.net';
+my $rc5server = 'us.v27.distributed.net';
 my $maxinstances = 6;       # maximum number of instances
 
 
@@ -156,44 +156,50 @@ for (my $part = 0; $part < $num_parts; $part++)
 	my $IO = $body->open("r");
 	if ($IO)
 	{
-	    my $bodypath = "/tmp/blocks/flush-".$$."-".$part;
-	    if (open(OUTBUFF, ">$bodypath"))
-	    {
+	    my $bodypath = "/tmp/blocks/flush-" . $$ . "-" . $part;
+	    my $bodyfullpath = $bodypath . ".rc5";
+	    my $clientlog = "/tmp/blocks/log-".$$;
+
+	    if (open(OUTBUFF, ">$bodyfullpath")) {
 		my $buffer;
 		$IO->read($buffer,5000000);
 		syswrite OUTBUFF,$buffer,5000000;
+		close(OUTBUFF);
 	    }
 	    undef $IO;
-	    close(OUTBUFF);
 
 	    chdir $basedir;
-	    chmod 0666, $bodypath;    # sigh...
+	    chmod 0666, $bodyfullpath;    # sigh...
 
-	    my $bodyfullpath = $bodypath.".rc5";
-	    rename $bodypath, $bodyfullpath;
-
-	    my $clientlog = "/tmp/blocks/log-".$$;
-
+	    # execute the client and capture its console output.
 	    open(SUB, "$basedir/dnetc -outbase $bodypath -flush -a $rc5server -l $clientlog |");
-	    $/ = undef;
-	    my $subresults .= <SUB>;
-            $subresults =~ /Setting out-buffer base name to \/tmp\/blocks\/flush-/;
-            $' =~ /-/;
-            $results .= "\nFlush ID is ".$`;
+	    local $/ = undef;
+	    my $subresults = <SUB>;
 	    close SUB;
 
+	    # read in the entire logfile output.
 	    open(LOG, $clientlog);
-            $/ = undef;
-            $results .= <LOG>;
+            local $/ = undef;
+            my $logresults = <LOG>;
             close LOG;
-
-#	    my @filelist = glob '$bodypath.*';
-#	    unlink @filelist;
-	    unlink $bodypath.".rc5";
-	    unlink $bodypath.".des";
-	    unlink $bodypath.".ogr";
-	    unlink $bodypath.".csc";
 	    unlink $clientlog;
+
+	    # try first to send back the logfile output, but only if
+	    # it appears to contain useful content.  otherwise send
+	    # back the entire capture of the console output.
+	    if ($logresults =~ m/\S+/ && 
+		length($logresults) > 80) {
+		$results .= $logresults;
+	    } else {
+		$results .= $subresults;
+	    }
+
+	    # delete the temporarily saved buffer file.
+	    unlink $bodyfullpath;
+	    #unlink $bodypath.".rc5";
+	    #unlink $bodypath.".des";
+	    #unlink $bodypath.".ogr";
+	    #unlink $bodypath.".csc";
 	}
 	else
 	{
@@ -221,11 +227,7 @@ if ( !$results || $results !~ m|\S+| )
 else
 {
     my $gotcount = 0;
-    if ( $results =~ m|Sent (\d+) packets \((\S+) work|is ) {
-        print STDERR "$$: Block flushing of $1 blocks ($2 workunits) complete.\n";
-        $gotcount = 1;
-    }
-    if ( $results =~ m|Sent (\d+) packet \((\S+) work|is ) {
+    while ( $results =~ m|Sent (\d+) packets? \((\S+) work|gis ) {
         print STDERR "$$: Block flushing of $1 blocks ($2 workunits) complete.\n";
         $gotcount = 1;
     }
