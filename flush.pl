@@ -1,4 +1,4 @@
-#!/usr/bin/perl5 -T
+#!/usr/bin/perl -T
 
 # Distributed.net e-mail block flusher
 #    Jeff Lawson <jlawson@bovine.net>
@@ -11,7 +11,6 @@
 #    
 
 use strict;
-use lib '/usr/local/lib/perl5/site_perl/5.005';
 require MIME::Parser;
 require MIME::Entity;
 require MIME::Base64;          # only indirectly needed
@@ -30,12 +29,15 @@ my $serveraddress = 'rc5help\@distributed.net';
 
 
 # Default options
-my $rc5server = '205.149.163.211';   # rc5.best.net
+my $rc5server = '127.0.0.1';
 
 
 # Redirect our stderr
 my $basedir = '/home/bovine/fetchflush';
-my $logfile = "$basedir/flush.log";
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
+my $year4 = ($year > 80 ? $year + 1900 : $year + 2000);
+my $month = sprintf("%02d", $mon + 1);
+my $logfile = "$basedir/flush-$year4-$month.log";
 open( STDERR, ">>$logfile" );
 
 
@@ -115,30 +117,43 @@ for (my $part = 0; $part < $num_parts; $part++)
     my $mime_encoding = $body->head->mime_encoding;
 
     # See if we should try to flush this
-    if ( $mime_type !~ m|^text/|i )
+    if ( $mime_type =~ m|^multipart/|i )
     {
-	my $IO = $body->open("r")      || die "open body failed";
-	my $bodypath = "/tmp/flush".$$."-".$part;
-	if (open(OUTBUFF, ">$bodypath"))
+	print STDERR "$$: ignoring nested multipart section\n";
+    }
+    elsif ( $mime_type !~ m|^text/|i )
+    {
+	my $IO = $body->open("r");
+	if ($IO)
 	{
-	    my $buffer;
-	    $IO->read($buffer,500000);
-	    syswrite OUTBUFF,$buffer,500000;
-	}
-	undef $IO;
-	close(OUTBUFF);
+	    my $bodypath = "/tmp/flush".$$."-".$part;
+	    if (open(OUTBUFF, ">$bodypath"))
+	    {
+		my $buffer;
+		$IO->read($buffer,500000);
+		syswrite OUTBUFF,$buffer,500000;
+	    }
+	    undef $IO;
+	    close(OUTBUFF);
 
-	chdir $basedir;
-	chmod 0666, $bodypath;    # sigh...
-	open(SUB, "$basedir/rc5des -out $bodypath -percentoff -processdes 0 -flush -p $rc5server |");
-	$/ = undef;
-	$results .= <SUB>;
-	close SUB;
-	unlink $bodypath;
+	    chdir $basedir;
+	    chmod 0666, $bodypath;    # sigh...
+	    open(SUB, "$basedir/rc5des -out $bodypath -percentoff -processdes 0 -flush -a $rc5server |");
+	    $/ = undef;
+	    $results .= <SUB>;
+	    close SUB;
+	    unlink $bodypath;
+	}
+	else
+	{
+	    print STDERR "$$: warning failed to open $mime_type ($mime_encoding) body\n";
+	}
     }
 
     # Delete the files for any external (on-disk) data:
-    $body->bodyhandle->purge;    
+    if ($body->bodyhandle) {
+	$body->bodyhandle->purge;
+    }
 }
 
 

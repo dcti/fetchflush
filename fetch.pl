@@ -1,4 +1,4 @@
-#!/usr/bin/perl5 -T
+#!/usr/bin/perl -T
 
 # Distributed.net e-mail block fetcher
 #    Jeff Lawson <jlawson@bovine.net>
@@ -11,7 +11,6 @@
 #    
 
 use strict;
-use lib '/usr/local/lib/perl5/site_perl/5.005';
 require MIME::Parser;
 require MIME::Entity;
 require MIME::Base64;          # only indirectly needed
@@ -30,7 +29,7 @@ my $serveraddress = 'rc5help\@distributed.net';
 
 
 # Set the default fetch values
-my $rc5server = '205.149.163.211';   # rc5.best.net
+my $rc5server = '127.0.0.1';
 my $fetchcount = 0;
 my $fetchcontest = 1;        # 1=rc5, 2=des
 my $fetchblocksize = 30;     # blocksize (28-31)
@@ -38,7 +37,10 @@ my $fetchblocksize = 30;     # blocksize (28-31)
 
 # Redirect our stderr
 my $basedir = '/home/bovine/fetchflush';
-my $logfile = "$basedir/fetch.log";
+my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
+my $year4 = ($year > 80 ? $year + 1900 : $year + 2000);
+my $month = sprintf("%02d", $mon + 1);
+my $logfile = "$basedir/fetch-$year4-$month.log";
 open( STDERR, ">>$logfile" );
 
 
@@ -175,7 +177,7 @@ chmod 0666, $filename;          # sigh
 # Execute the actual fetch sequence
 print STDERR "$$: Starting request (count=$fetchcount, contest=$fetchcontest, blocksize=$fetchblocksize)\n";
 chdir $basedir;
-open(SUB, "$basedir/rc5des -in $filename -percentoff -b $fetchcount -blsize $fetchblocksize -processdes 0 -p $rc5server -fetch |");
+open(SUB, "$basedir/rc5des -in $filename -percentoff -b $fetchcount -blsize $fetchblocksize -processdes 0 -a $rc5server -fetch |");
 $/ = undef;
 $results = <SUB>;
 close SUB;
@@ -185,7 +187,7 @@ close SUB;
 # Mail back the results
 if ( $results !~ m|\S+| )
 {
-    print STDERR "$$: Flush completed with no output.\n";
+    print STDERR "$$: Fetch completed with no output.\n";
     SendMessage($sender, "Distributed.Net Block Fetcher Failure",
         "A fetch was attempted, but no output was produced.  If the ".
 	"problem persists, please contact us so that we can look into ".
@@ -301,8 +303,8 @@ sub SendMessageAttachment
 	    Path => $attachfile,
 	    Filename => $attachname,
 	    Type => "application/binary-stream",
-	    Encoding => "quoted-printable";
-#	    Encoding => "base64";
+#	    Encoding => "quoted-printable";
+	    Encoding => "base64";
 	close(ATTACH);
     }
 
