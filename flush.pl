@@ -210,11 +210,10 @@ for (my $part = 0; $part < $num_parts; $part++)
 	if ($IO)
 	{
 	    my $basebodypath = "$tmpdir/flush-$$-$part";    # base buffer filename (without extension)
-	    my $bodyfullpath = $basebodypath . ".ogr";    # buffer filename (with extension).  exact extension doesn't need to match contents, but needs to be an extension checked by the client.
+	    my $bodyfullpath = $basebodypath . ".r72";    # buffer filename (with extension).  exact extension doesn't need to match contents, but needs to be an extension checked by the client.
 
 	    my $clientlog = "$tmpdir/log-$$";      # log filename
 
-	    my $is_v29 = 0;
 	    my $bufferfilesize = 0;
 	    if (open(OUTBUFF, ">$bodyfullpath")) {
 		binmode OUTBUFF;
@@ -228,8 +227,12 @@ for (my $part = 0; $part < $num_parts; $part++)
 			    exit 0;
 			}
 
-			# determine if the buffer was created by a v2.9 client.
-			$is_v29 = ($buffer =~ m/^\x83\xB6\x34\x1A/s);
+			# ensure the buffer was created by a v2.9 client.
+			if ($buffer !~ m/^\x83\xB6\x34\x1A/s) {
+			    print STDERR "$$: ignoring unrecognized file.\n";
+			    $bufferfilesize = 0;
+			    last;
+			}
 
 			$first = 0;
 		    }
@@ -239,20 +242,15 @@ for (my $part = 0; $part < $num_parts; $part++)
 		close(OUTBUFF);
 	    }
 	    undef $IO;
+	    next if !$bufferfilesize;
+	    print STDERR "$$: Found $bufferfilesize byte v2.9 client buffer\n";
 
 	    chdir $basedir;
 	    chmod 0666, $bodyfullpath;    # sigh...
 
 	    # decide the command-line to execute.
-	    my $flushcmd;
-	    if ($is_v29) {
-		$keyserver = "us.v29.distributed.net";
-		$flushcmd = "$basedir/dnetc29 -outbase $basebodypath -flush -a $keyserver -l $clientlog";
-		print STDERR "$$: Found $bufferfilesize byte v2.9 client buffer\n";
-	    } else {
-		$flushcmd = "$basedir/dnetc28 -outbase $basebodypath -flush -a $keyserver -l $clientlog";
-		print STDERR "$$: Found $bufferfilesize byte client buffer\n";
-	    }
+	    $keyserver = "us.v29.distributed.net";
+	    my $flushcmd = "$basedir/dnetc29 -outbase $basebodypath -flush -a $keyserver -l $clientlog";
 
 	    # execute the client and capture its console output.
 	    my $subresults;

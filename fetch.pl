@@ -43,7 +43,7 @@ my $keyserver = 'us.v29.distributed.net';
 my $fetchcount = 0;
 my $fetchcontest = "rc5-72";
 my $suffix = "r72";
-my $projectpriority = "OGR=0,RC5-72";
+my $projectpriority = "OGR=0,OGR-P2=0,RC5-72";
 my $fetchblocksize = 31;     	# blocksize (28-33) for rc5-64
 my $dnetcbin = "$basedir/dnetc29";
 
@@ -66,11 +66,10 @@ Include "numblocks=yyyy" anywhere in the body of your message. Note
 that the client may impose an upper-limit of the number of workunits
 you can request at a time.
 
-To request OGR blocks compatible with the new v2.9 clients, include
-"contest=OGR" anywhere in the body of your message. To request OGR
-blocks compatible with the older v2.8 clients, include
-"contest=OGROLD" instead.  The default is to request RC5-72 blocks
-(which are only usable by v2.9 clients).
+To request OGR-P2 blocks compatible with the new v2.9008 clients,
+include "contest=OGR" anywhere in the body of your message.  The
+default is to request RC5-72 blocks (which are only usable by v2.9
+clients).
 
 Other than these flags, the contents of any messages sent to
 fetch\@distributed.net are ignored.
@@ -131,21 +130,14 @@ sub ProcessCommands ($)
 	    $suffix="r72"; 
 	    $keyserver = "us.v29.distributed.net";
 	    $dnetcbin = "$basedir/dnetc29";
-	    $projectpriority = "OGR=0,RC5-72";
+	    $projectpriority = "OGR=0,OGR-P2=0,RC5-72";
 	}
-	elsif ( $contest eq "ogr" ) { 
-	    $fetchcontest = "ogr";
-	    $suffix="ogr";
+	elsif ( $contest eq "ogr" || $contest eq "ogrp2" || $contest eq "ogr-p2" ) { 
+	    $fetchcontest = "ogr-p2";
+	    $suffix="ogf";
 	    $keyserver = "us.v29.distributed.net";
 	    $dnetcbin = "$basedir/dnetc29";
-	    $projectpriority = "OGR,RC5-72=0";
-	}
-	elsif ( $contest eq "ogrold" ) {
-	    $fetchcontest = "ogr";
-	    $suffix="ogr";
-	    $keyserver = "us.v27.distributed.net";
-	    $dnetcbin = "$basedir/dnetc28";
-	    $projectpriority = "OGR,RC5=0,DES=0,CSC=0";
+	    $projectpriority = "OGR=0,OGR-P2,RC5-72=0";
 	}
     }
 }
@@ -300,12 +292,6 @@ if (! $sender) {
 my $nowstring = gmtime;
 print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
 
-#if ($sender =~ m/\@coheris-atix\.com/i) {
-#    print STDERR "$$: Ignoring message from $sender\n";
-#    print STDERR "$$: Exiting\n";
-#    exit 0;
-#}
-
 
 #
 # Check for process limits
@@ -402,7 +388,7 @@ close(TOUCH);
 chmod 0666, $filename;          # sigh
 
 my $filebasename = $filename;
-$filebasename =~ s/.$suffix//;
+$filebasename =~ s/\.$suffix$//;
 
 # $suffix contains "rc5" or the like
 # $fetchcontest contains "rc5.ini" or the like
