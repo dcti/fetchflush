@@ -15,33 +15,28 @@ require MIME::Parser;
 require MIME::Entity;
 require MIME::Base64;          # only indirectly needed
 require MIME::QuotedPrint;     # only indirectly needed
+require MIME::Body;            # only indirectly needed
 require Mail::Send;            # only indirectly needed
 require IO::Stringy;           # only indirectly needed
 use IPC::SysV qw(IPC_R IPC_W IPC_CREAT ftok);
 
-
-#require MIME::Decoder::UU;
-#$decoder = new MIME::Decoder 'x-uuencode' or die "unsupported";
-#$decoder->decode(\*STDIN, \*STDOUT);
-#/^begin\s*(\d*)\s*(\S*)/; 
 
 # explicitly set our path to untaint it
 $ENV{'PATH'} = '/bin:/usr/bin';
 my $sendmail = '/usr/sbin/sendmail';
 umask 002;
 
-# Set our own address
-my $serveraddress = 'help';
+# Set our own 'From' e-mail address.
+my $serveraddress = 'help@distributed.net';
 
 # Default options
-#my $rc5server = '209.98.32.14';   # nodezero
-#my $rc5server = '130.161.38.8';
-my $rc5server = 'us.v27.distributed.net';
-my $maxinstances = 6;       # maximum number of instances
-
-
-# Redirect our stderr
+my $keyserver = 'us.v27.distributed.net';
+my $maxinstances = 6;       # maximum number of simultaneous instances
+my $tmpdir = '/tmp/blocks';
 my $basedir = '/home/blocks/fetchflush';
+
+
+# Redirect our stderr to a log file.
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = gmtime();
 my $year4 = $year + 1900;        # yes this is y2k safe.
 my $month = sprintf("%02d", $mon + 1);
@@ -56,16 +51,11 @@ using your buffer files.  Three attempts are made, in an attempt to
 overcome any network errors.
 
 Buffer files must be attached to your message using MIME Base64
-encoding.  They must be called "buff-out.xxx", according to the contest
-you are flushing.
+encoding.
 
 The email address specified in your client's configuration will be
 used when giving credit to flushed blocks (not to the email address
 that you are emailing this message from).
-
-However, don't send blocks from version 2.6401 clients here if you
-want credit.  Due to a bug in that single client version, the email
-address is not stored within the blocks.  Upgrade your clients!
 
 Other than the attachments, the contents of any messages sent to
 flush\@distributed.net are ignored.  If you encounter problems with
@@ -74,18 +64,79 @@ EOM
 
 
 
+sub FindSender ($)
+{
+    my $head = shift || return undef;
+    my $sender = $head->get('Reply-to', 0) || 
+	$head->get('From', 0) || "";
+    if( $sender =~ m/(\S+@\S+)/ ) {
+	$sender = $1;
+	$sender =~ s/^[^<]*<//;
+	$sender =~ s/>.*$//;
+    } else { 
+	undef $sender;
+    }
+    return $sender;
+}
+         
+sub SendMessage ($$$)
+{
+    my ($addressee, $subject, $body) = @_;
+
+    my $top = build MIME::Entity
+        Type => "text/plain",
+        From => $serveraddress,
+        To => $addressee,
+        Subject => $subject,
+        Data => $body;
+
+    if (!open(MAIL, "| $sendmail -t -i")) {
+        print STDERR "$$: Unable to launch sendmail.\n";
+    }
+    $top->print(\*MAIL);
+    close MAIL;
+    print STDERR "$$: Sent mail to $addressee\n";
+}
+
+sub LimitInstances ($$)
+{
+    my $maxcopies = shift || 4;      # number of instances to check.
+    my $ipcid = shift || die;        # arbitrary unique 8-bit integer
+
+    my $shmkey = ftok($0, $ipcid) || die "unable to get key";
+    my $shmid = shmget($shmkey, 4 * $maxcopies, IPC_R | IPC_W | IPC_CREAT);
+    die "unable to get memory" if (!defined $shmid);
+
+    for (my $i = 0; $i < $maxcopies; $i++) {
+        my $memraw;
+        shmread($shmid, $memraw, $i * 4, 4) || die "unable to read memory";
+        my $mempid = int(unpack('N',$memraw));
+	if ($mempid =~ m/(\d+)/) { $mempid = $1; } else { $mempid = 0; }
+        if (!$mempid || kill(0, $mempid) <= 0) {
+            # found an empty pid slot
+            $memraw = pack('N', $$);
+            shmwrite($shmid, $memraw, $i * 4, 4) || die "unable to write memory";
+            return 1;    # success
+        }
+    }
+    die "no slots available";
+}
+
+
+
+
 # Construct our parser object
 my $parser = new MIME::Parser;
 $parser->parse_nested_messages('REPLACE');
-$parser->output_dir("/tmp/blocks");
+$parser->output_dir($tmpdir);
 $parser->output_prefix("flush");
 $parser->output_to_core('ALL');
-
+$parser->extract_uuencode(1);
 
 # Parse the input stream
 my $entity = $parser->read(\*STDIN);
 if (!$entity ) {
-    my $sender = &FindSender($parser->last_head);
+    my $sender = FindSender($parser->last_head);
     if (! $sender) {
         print STDERR "$$: Couldn't parse or find sender's address\n";
 	print STDERR "$$: Exiting\n";
@@ -104,7 +155,7 @@ $entity->make_multipart;
 
 
 # Determine the sender
-my $sender = &FindSender($entity->head);
+my $sender = FindSender($entity->head);
 if (! $sender) { 
     print STDERR "$$: Could not find sender's email address.\n";
     print STDERR "$$: Exiting\n";
@@ -117,7 +168,7 @@ print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
 #
 # Check for process limits
 eval {
-    &LimitInstances($maxinstances, 44);
+    LimitInstances($maxinstances, 44);
 };
 if ($@) {
     print STDERR "$$: Too many instances running.  Sending back error.\n";
@@ -125,7 +176,7 @@ if ($@) {
         "The block flusher is currently undergoing an abnormal amount of ".
         "activity and is unable to process your request at this time.  ".
         "Please resend your request in 15 minutes or more and we may be ".
-		"able to handle your request then.\n\nEOF.");
+	"able to handle your request then.\n\nEOF.");
     print STDERR "$$: Exiting\n";
     exit 0;
 }
@@ -151,19 +202,32 @@ for (my $part = 0; $part < $num_parts; $part++)
     {
 	print STDERR "$$: ignoring nested multipart section\n";
     }
-    elsif ( $mime_type !~ m|^text/|i )
+    elsif ( $mime_type !~ m|^text/|i )        # any non-text section.
     {
+	#$body->binmode(1);     # this doesn't seem to work.
 	my $IO = $body->open("r");
 	if ($IO)
 	{
-	    my $bodypath = "/tmp/blocks/flush-" . $$ . "-" . $part;
-	    my $bodyfullpath = $bodypath . ".rc5";
-	    my $clientlog = "/tmp/blocks/log-".$$;
+	    my $basebodypath = "$tmpdir/flush-$$-$part";    # base buffer filename (without extension)
+	    my $bodyfullpath = $basebodypath . ".r72";    # buffer filename (with extension).  exact extension doesn't need to match contents.
 
+	    my $clientlog = "$tmpdir/log-$$";      # log filename
+
+	    my $is_v29 = 0;
+	    my $bufferfilesize = 0;
 	    if (open(OUTBUFF, ">$bodyfullpath")) {
+		binmode OUTBUFF;
 		my $buffer;
-		$IO->read($buffer,5000000);
-		syswrite OUTBUFF,$buffer,5000000;
+		my $first = 1;
+		while ($IO->read($buffer,10240)) {
+		    if ($first) {
+			# determine if the buffer was created by a v2.9 client.
+			$is_v29 = ($buffer =~ m/^\x83\xB6\x34\x1A/s);
+			$first = 0;
+		    }
+		    $bufferfilesize += syswrite OUTBUFF,$buffer;
+		    undef $buffer;
+		}
 		close(OUTBUFF);
 	    }
 	    undef $IO;
@@ -171,24 +235,38 @@ for (my $part = 0; $part < $num_parts; $part++)
 	    chdir $basedir;
 	    chmod 0666, $bodyfullpath;    # sigh...
 
+	    # decide the command-line to execute.
+	    my $flushcmd;
+	    if ($is_v29) {
+		$keyserver = "us.v29.distributed.net";
+		$flushcmd = "$basedir/dnetc29 -outbase $basebodypath -flush -a $keyserver -l $clientlog";
+		print STDERR "$$: Found $bufferfilesize byte v2.9 client buffer\n";
+	    } else {
+		$flushcmd = "$basedir/dnetc28 -outbase $basebodypath -flush -a $keyserver -l $clientlog";
+		print STDERR "$$: Found $bufferfilesize byte client buffer\n";
+	    }
+
 	    # execute the client and capture its console output.
-	    open(SUB, "$basedir/dnetc -outbase $bodypath -flush -a $rc5server -l $clientlog |");
-	    local $/ = undef;
-	    my $subresults = <SUB>;
-	    close SUB;
+	    my $subresults;
+	    if (open(SUB, "$flushcmd |")) {
+		local $/ = undef;
+		$subresults = <SUB>;
+		close SUB;
+	    }
 
 	    # read in the entire logfile output.
-	    open(LOG, $clientlog);
-            local $/ = undef;
-            my $logresults = <LOG>;
-            close LOG;
+	    my $logresults;
+	    if (open(LOG, $clientlog)) {
+		local $/ = undef;
+		$logresults = <LOG>;
+		close LOG;
+	    }
 	    unlink $clientlog;
 
 	    # try first to send back the logfile output, but only if
 	    # it appears to contain useful content.  otherwise send
 	    # back the entire capture of the console output.
-	    if ($logresults =~ m/\S+/ && 
-		length($logresults) > 80) {
+	    if ($logresults =~ m/\S+/ && length($logresults) > 80) {
 		$results .= $logresults;
 	    } else {
 		$results .= $subresults;
@@ -196,10 +274,6 @@ for (my $part = 0; $part < $num_parts; $part++)
 
 	    # delete the temporarily saved buffer file.
 	    unlink $bodyfullpath;
-	    #unlink $bodypath.".rc5";
-	    #unlink $bodypath.".des";
-	    #unlink $bodypath.".ogr";
-	    #unlink $bodypath.".csc";
 	}
 	else
 	{
@@ -227,8 +301,8 @@ if ( !$results || $results !~ m|\S+| )
 else
 {
     my $gotcount = 0;
-    while ( $results =~ m|Sent (\d+) packets? \((\S+) work|gis ) {
-        print STDERR "$$: Block flushing of $1 blocks ($2 workunits) complete.\n";
+    while ( $results =~ m/Sent (\d+) packets? \((\S+) (work|stat)/gis ) {
+        print STDERR "$$: Block flushing of $1 packets ($2 stats units) complete.\n";
         $gotcount = 1;
     }
     if ( ! $gotcount ) {
@@ -241,66 +315,3 @@ else
 }
 print STDERR "$$: Exiting\n";
 exit 0;
-
-
-sub FindSender
-{
-    my $head = shift || return undef;
-    my $sender = $head->get('Reply-to', 0) || 
-	$head->get('From', 0) || "";
-    if( $sender =~ m/(\S+@\S+)/ ) {
-	$sender = $1;
-	$sender =~ s/^[^<]*<//;
-	$sender =~ s/>.*$//;
-    } else { 
-	undef $sender;
-    }
-    return $sender;
-}
-
-         
-sub SendMessage
-{
-    my $addressee = shift;
-    my $subject = shift;
-    my $body = shift;
-
-    my $top = build MIME::Entity
-        Type => "text/plain",
-        From => $serveraddress,
-        To => $addressee,
-        Subject => $subject,
-        Data => $body;
-
-    if (!open(MAIL, "| $sendmail -t -i"))
-    {
-        print STDERR "$$: Unable to launch sendmail.\n";
-    }
-    $top->print(\*MAIL);
-    close MAIL;
-    print STDERR "$$: Sent mail to $addressee\n";
-}
-
-sub LimitInstances
-{
-    my $maxcopies = shift || 4;      # number of instances to check.
-    my $ipcid = shift || die;        # arbitrary unique 8-bit integer
-
-    my $shmkey = ftok($0, $ipcid) || die "unable to get key";
-    my $shmid = shmget($shmkey, 4 * $maxcopies, IPC_R | IPC_W | IPC_CREAT);
-    die "unable to get memory" if (!defined $shmid);
-
-    for (my $i = 0; $i < $maxcopies; $i++) {
-        my $memraw;
-        shmread($shmid, $memraw, $i * 4, 4) || die "unable to read memory";
-        my $mempid = int(unpack('N',$memraw));
-	if ($mempid =~ m/(\d+)/) { $mempid = $1; } else { $mempid = 0; }
-        if (!$mempid || kill(0, $mempid) <= 0) {
-            # found an empty pid slot
-            $memraw = pack('N', $$);
-            shmwrite($shmid, $memraw, $i * 4, 4) || die "unable to write memory";
-            return 1;    # success
-        }
-    }
-    die "no slots available";
-}
