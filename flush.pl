@@ -50,8 +50,9 @@ flush\@distributed.net.  The attached is the output of "dnetc -flush"
 using your buffer files.  Three attempts are made, in an attempt to
 overcome any network errors.
 
-Buffer files must be attached to your message using MIME Base64
-encoding.
+Buffer files must be attached to your message using either MIME Base64
+or UU encoding.  Buffers formats from both client versions v2.8 and
+v2.9 are supported.
 
 The email address specified in your client's configuration will be
 used when giving credit to flushed blocks (not to the email address
