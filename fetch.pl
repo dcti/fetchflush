@@ -58,10 +58,7 @@ To request blocks of a different size, include
 To request a buffer file with more or fewer than the default
 (100 blocks), include "numblocks=yyyy" anywhere in your
 message.  'xx' is any number from 28 to 33.  'yyyy' may be
-any number from 1 to 1000.
-
-By default, RC5 blocks are retrieved.  To get DES blocks,
-include "CONTEST=DES" in your message (subject or body).
+any number from 1 to 500.
 
 Other than these flags, the contents of any messages sent
 to fetch\@distributed.net are ignored.
@@ -71,7 +68,7 @@ EOM
 # Construct our parser object
 my $parser = new MIME::Parser;
 $parser->parse_nested_messages('REPLACE');
-$parser->output_dir("/tmp");
+$parser->output_dir("/tmp/blocks");
 $parser->output_prefix("fetch");
 $parser->output_to_core('ALL');
 
@@ -159,7 +156,7 @@ if ( $fetchcount < 1 )
 
 #
 # Generate the temporary filename
-my $filename = "/tmp/fetch-".$$.".rc5";
+my $filename = "/tmp/blocks/fetch-".$$.".rc5";
 if ( !open(TOUCH,">$filename") ) 
 {
     print STDERR "$$: Could not open temporary file ($filename).\n";
@@ -246,13 +243,13 @@ sub ProcessCommands
     {
 	$fetchblocksize = int($1);
 	if ($fetchblocksize < 28) { $fetchblocksize = 28; }
-	if ($fetchblocksize > 31) { $fetchblocksize = 31; }
+	if ($fetchblocksize > 33) { $fetchblocksize = 33; }
     }
     if ( $text =~ m|numblocks\s*=\s*(\d+)|is )
     {
 	$fetchcount = int($1);
 	if ($fetchcount < 1) { $fetchcount = 1; }
-	if ($fetchcount > 1000) { $fetchcount = 1000; }
+	if ($fetchcount > 500) { $fetchcount = 500; }
     }
     if ( $text =~ m|contest\s*=\s*(\w+)|is )
     {
