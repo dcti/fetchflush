@@ -486,12 +486,13 @@ if ( $results !~ m|\S+| )
 else
 {
     my $gotcount = 0;
-    if ( $results =~ m|Retrieved (\d+) \w+ packets? \((\d+) work |is) {
-        print STDERR "$$: Retrieved $1 blocks ($2 work units) from server\n";
+    if ( $results =~ m|Retrieved (\d+) \w+ packets? \((\d+) work |is ||
+	$results =~ m|Retrieved (\d+) packets? \(([\d\.]+) stat|is ) {
+        print STDERR "$$: Retrieved $1 packets ($2 work units) from server\n";
         $gotcount = 1;
     }
     elsif ( $results =~ m|Retrieved stats unit (\d+) of|is) {
-	print STDERR "$$: Retrieved $2 work units from server\n";
+	print STDERR "$$: Retrieved $1 work units from server\n";
 	$gotcount = 1;
     }
     if ( $gotcount < 1 ) {
