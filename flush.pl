@@ -210,7 +210,7 @@ for (my $part = 0; $part < $num_parts; $part++)
 	if ($IO)
 	{
 	    my $basebodypath = "$tmpdir/flush-$$-$part";    # base buffer filename (without extension)
-	    my $bodyfullpath = $basebodypath . ".r72";    # buffer filename (with extension).  exact extension doesn't need to match contents.
+	    my $bodyfullpath = $basebodypath . ".ogr";    # buffer filename (with extension).  exact extension doesn't need to match contents, but needs to be an extension checked by the client.
 
 	    my $clientlog = "$tmpdir/log-$$";      # log filename
 
