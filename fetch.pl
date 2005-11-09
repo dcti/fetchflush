@@ -122,8 +122,7 @@ sub ProcessCommands ($)
 	if ($fetchcount < 1) { $fetchcount = 1; }
 	if ($fetchcount > $maxfetch) { $fetchcount = $maxfetch; }
     }
-    if ( $text =~ m|contest\s*=\s*([\w\-]+)|is ||
-	$text =~ m|project\s*=\s*([\w\-]+)|is ) {
+    if ( $text =~ m/(?:contest|project)\s*=\s*([\w\-]+)/is ) {
 	my $contest = lc $1;
 	if ( $contest eq "rc5" || $contest eq "rc5-72" || $contest eq "rc572" ) { 
 	    $fetchcontest = "rc5-72";
@@ -133,7 +132,7 @@ sub ProcessCommands ($)
 	    $projectpriority = "OGR=0,OGR-P2=0,RC5-72";
 	}
 	elsif ( $contest eq "ogr" || $contest eq "ogrp2" || $contest eq "ogr-p2" ) { 
-	    $fetchcontest = "ogr-p2";
+	    $fetchcontest = "ogr_p2";
 	    $suffix="ogf";
 	    $keyserver = "us.v29.distributed.net";
 	    $dnetcbin = "$basedir/dnetc29";
@@ -431,7 +430,7 @@ close(INI);
 #
 # Execute the actual fetch sequence
 my $results;
-print STDERR "$$: Starting request (count=$fetchcount, contest=$fetchcontest, blocksize=$fetchblocksize)\n";
+print STDERR "$$: Starting request (count=$fetchcount, project=$fetchcontest, blocksize=$fetchblocksize)\n";
 chdir $tmpdir;
 my $fetchcmd = "$dnetcbin -ini $inifilename -fetch";
 
@@ -487,9 +486,6 @@ else
 
     my $bodymsg = <<EOF;
 The block fetcher has completed your fetch of $fetchcount requested blocks.
-
-** NOTE: THE REQUESTED WORK IS NOW ALWAYS WORKUNITS, NOT
-** PACKETS, REGARDLESS YOUR PREFERRED BLOCKSIZE
 
 The output of the fetch is shown below:
 
