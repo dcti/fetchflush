@@ -43,9 +43,9 @@ my $keyserver = 'us.v29.distributed.net';
 my $fetchcount = 0;
 my $fetchcontest = "rc5-72";
 my $suffix = "r72";
-my $projectpriority = "OGR=0,OGR-P2=0,RC5-72";
+my $projectpriority = "OGR-NG=0,RC5-72";
 my $fetchblocksize = 31;     	# blocksize (28-33) for rc5-64
-my $dnetcbin = "$basedir/dnetc29";
+my $dnetcbin = "$basedir/dnetc507";
 
 
 # Redirect our stderr
@@ -66,7 +66,7 @@ Include "numblocks=yyyy" anywhere in the body of your message. Note
 that the client may impose an upper-limit of the number of workunits
 you can request at a time.
 
-To request OGR-P2 blocks compatible with the new v2.9008 clients,
+To request OGR-NG (OGR-26) blocks compatible with the new v2.910X clients,
 include "contest=OGR" anywhere in the body of your message.  The
 default is to request RC5-72 blocks (which are only usable by v2.9
 clients).
@@ -126,17 +126,13 @@ sub ProcessCommands ($)
 	my $contest = lc $1;
 	if ( $contest eq "rc5" || $contest eq "rc5-72" || $contest eq "rc572" ) { 
 	    $fetchcontest = "rc5-72";
-	    $suffix="r72"; 
-	    $keyserver = "us.v29.distributed.net";
-	    $dnetcbin = "$basedir/dnetc29";
-	    $projectpriority = "OGR=0,OGR-P2=0,RC5-72";
+	    $suffix = "r72"; 
+	    $projectpriority = "OGR-NG=0,RC5-72";
 	}
-	elsif ( $contest eq "ogr" || $contest eq "ogrp2" || $contest eq "ogr-p2" ) { 
-	    $fetchcontest = "ogr_p2";
-	    $suffix="ogf";
-	    $keyserver = "us.v29.distributed.net";
-	    $dnetcbin = "$basedir/dnetc29";
-	    $projectpriority = "OGR=0,OGR-P2,RC5-72=0";
+	elsif ( $contest eq "ogr" || $contest eq "ogrng" || $contest eq "ogr-ng" ) { 
+	    $fetchcontest = "ogr-ng";
+	    $suffix = "og2";
+	    $projectpriority = "OGR-NG,RC5-72=0";
 	}
     }
 }
@@ -390,7 +386,7 @@ my $filebasename = $filename;
 $filebasename =~ s/\.$suffix$//;
 
 # $suffix contains "rc5" or the like
-# $fetchcontest contains "rc5.ini" or the like
+# $fetchcontest contains the section name within dnetc.ini
 
 #
 # Create an ini file for the client.

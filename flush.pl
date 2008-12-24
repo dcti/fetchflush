@@ -30,10 +30,11 @@ umask 002;
 my $serveraddress = 'blocks-bounces@distributed.net';
 
 # Default options
-my $keyserver = 'us.v27.distributed.net';
+my $keyserver = 'us.v29.distributed.net';
 my $maxinstances = 6;       # maximum number of simultaneous instances
 my $tmpdir = '/tmp/blocks';
 my $basedir = '/home/blocks/fetchflush';
+my $dnetcbin = "$basedir/dnetc507";
 
 
 # Redirect our stderr to a log file.
@@ -249,8 +250,7 @@ for (my $part = 0; $part < $num_parts; $part++)
 	    chmod 0666, $bodyfullpath;    # sigh...
 
 	    # decide the command-line to execute.
-	    $keyserver = "us.v29.distributed.net";
-	    my $flushcmd = "$basedir/dnetc29 -outbase $basebodypath -flush -a $keyserver -l $clientlog";
+	    my $flushcmd = "$dnetcbin -outbase $basebodypath -flush -a $keyserver -l $clientlog";
 
 	    # execute the client and capture its console output.
 	    my $subresults;
