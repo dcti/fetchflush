@@ -34,7 +34,7 @@ my $keyserver = 'us.v29.distributed.net';
 my $maxinstances = 6;       # maximum number of simultaneous instances
 my $tmpdir = '/tmp/blocks';
 my $basedir = '/home/blocks/fetchflush';
-my $dnetcbin = "$basedir/dnetc507";
+my $dnetcbin = "$basedir/dnetc509";
 
 
 # Redirect our stderr to a log file.
@@ -129,10 +129,10 @@ sub LimitInstances ($$)
 
 # Construct our parser object
 my $parser = new MIME::Parser;
-$parser->parse_nested_messages('REPLACE');
+$parser->parse_nested_messages('REPLACE');    # extract_nested_messages?
 $parser->output_dir($tmpdir);
-#$parser->output_prefix("flush");
-$parser->output_to_core('ALL');
+$parser->output_prefix("flushtmp");
+$parser->output_to_core(0);
 $parser->extract_uuencode(1);
 
 # Parse the input stream
@@ -225,6 +225,8 @@ for (my $part = 0; $part < $num_parts; $part++)
 			# determine if this is a Win32 executable (virus/worm)
 			if ($buffer =~ m/^MZ/) {
 			    print STDERR "$$: ignoring Win32 executable.\n";
+			    close(OUTBUFF);
+			    unlink $bodyfullpath;
 			    exit 0;
 			}
 
@@ -250,14 +252,24 @@ for (my $part = 0; $part < $num_parts; $part++)
 	    chmod 0666, $bodyfullpath;    # sigh...
 
 	    # decide the command-line to execute.
+	    print STDERR "$$: Ulimits are:\n" . `/bin/sh -c "ulimit -a"`;
 	    my $flushcmd = "$dnetcbin -outbase $basebodypath -flush -a $keyserver -l $clientlog";
+	    print STDERR "$$: Executing \"$flushcmd\"\n";
 
 	    # execute the client and capture its console output.
-	    my $subresults;
-	    if (open(SUB, "$flushcmd |")) {
-		local $/ = undef;
-		$subresults = <SUB>;
-		close SUB;
+	    my $subresults = '';
+	    for (my $trycount = 0; $trycount < 3; $trycount++) {
+		if (open(SUB, "$flushcmd |")) {
+		    local $/ = undef;
+		    while(<SUB>) {
+			$subresults .= <SUB>;
+		    }
+		    close(SUB);
+		}
+		my $exitcode = ($? >> 8);
+		print STDERR "$$: Exit code was $exitcode\n";
+		last if ($subresults =~ m/Sent (\d+) packets?/gis);
+		$subresults .= "Retrying again...\n";
 	    }
 
 	    # read in the entire logfile output.
@@ -265,7 +277,7 @@ for (my $part = 0; $part < $num_parts; $part++)
 	    if (open(LOG, $clientlog)) {
 		local $/ = undef;
 		$logresults = <LOG>;
-		close LOG;
+		close(LOG);
 	    }
 	    unlink $clientlog;
 
