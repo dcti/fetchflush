@@ -44,8 +44,8 @@ my $fetchcount = 0;
 my $fetchcontest = "rc5-72";
 my $suffix = "r72";
 my $projectpriority = "OGR-NG=0,RC5-72";
-my $fetchblocksize = 1;     	# blocksize for rc5-72
-my $dnetcbin = "$basedir/dnetc509";
+my $fetchblocksize = 31;     	# blocksize (28-33) for rc5-64
+my $dnetcbin = "$basedir/dnetc507";
 
 
 # Redirect our stderr
@@ -66,16 +66,10 @@ Include "numblocks=yyyy" anywhere in the body of your message. Note
 that the client may impose an upper-limit of the number of workunits
 you can request at a time.
 
-To request OGR-NG (OGR-27) blocks compatible with v2.9103 or newer
-clients, include "contest=OGR" anywhere in the body of your message.
-The default is to request RC5-72 blocks (which are only usable by
-v2.9008 or newer clients).
-
-If requesting RC5-72 blocks, you may also optionally specify the
-"blocksize=nnn" option to specify then you want larger blocks,
-compatible with v2.9103 or newer clients.  This is typically only
-useful if you have a very fast computer or are using the
-PS3/CUDA/Stream clients.  The default is "blocksize=1".
+To request OGR-NG (OGR-26) blocks compatible with the new v2.910X clients,
+include "contest=OGR" anywhere in the body of your message.  The
+default is to request RC5-72 blocks (which are only usable by v2.9
+clients).
 
 Other than these flags, the contents of any messages sent to
 fetch\@distributed.net are ignored.
@@ -84,6 +78,15 @@ Three "-fetch" attempts are made, in an attempt to overcome any
 network errors.
 
 EOM
+
+
+#The attached buffers contain approximately the number of workunits you
+#requested by the keyword "numblocks" Note that now, numblocks does not
+#indicate number of blocks of packets, but workunits. This can mean you
+#actually get less packets/blocks, since blocks can contain multiple
+#workunits. This makes the behavior of the keyword "blocksize" a little
+#different, since this this keyword doesn't influence the number of
+#workunits you get.
 
 
 
@@ -109,11 +112,11 @@ sub FindSender ($)
 sub ProcessCommands ($)
 {
     my $text = shift || "";
-    if ( $text =~ m|blocksize\s*=\s*(\d+)|is ) {
-	$fetchblocksize = int($1);
-	if ($fetchblocksize < 1) { $fetchblocksize = 1; }
-	if ($fetchblocksize > 256*1024) { $fetchblocksize = 256*1024; }
-    }
+#    if ( $text =~ m|blocksize\s*=\s*(\d+)|is ) {
+#	$fetchblocksize = int($1);
+#	if ($fetchblocksize < 28) { $fetchblocksize = 28; }
+#	if ($fetchblocksize > 33) { $fetchblocksize = 33; }
+#    }
     if ( $text =~ m|numblocks\s*=\s*(\d+)|is ) {
 	$fetchcount = int($1);
 	if ($fetchcount < 1) { $fetchcount = 1; }
@@ -240,6 +243,7 @@ sub LimitInstances ($$)
 
 
 # Construct our parser object
+mkdir $tmpdir, 0700 if !-d $tmpdir;
 my $parser = new MIME::Parser;
 $parser->parse_nested_messages('REPLACE');
 $parser->output_dir($tmpdir);
