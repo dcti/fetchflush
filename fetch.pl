@@ -45,7 +45,7 @@ my $fetchcontest = "rc5-72";
 my $suffix = "r72";
 my $projectpriority = "OGR-NG=0,RC5-72";
 my $fetchblocksize = 31;     	# blocksize (28-33) for rc5-64
-my $dnetcbin = "$basedir/dnetc507";
+my $dnetcbin = "/home/blocks/dnetc519/dnetc";
 
 
 # Redirect our stderr
@@ -262,16 +262,16 @@ if (!$entity ) {
 	exit 0;
     }
 
-    my $bodymsg = <<EOF;
-We could not parse your message.  Perhaps it wasn't a MIME encapsulated message?
-
-INSTRUCTIONS FOLLOW:
-$greeting
-EOF
-
-    SendMessage($sender, "Distributed.Net Block Flusher Failure", $bodymsg);
+#    my $bodymsg = <<EOF;
+#We could not parse your message.  Perhaps it wasn't a MIME encapsulated message?
+#
+#INSTRUCTIONS FOLLOW:
+#$greeting
+#EOF
+#
+#    SendMessage($sender, "Distributed.Net Block Flusher Failure", $bodymsg);
     print STDERR "$$: Couldn't parse MIME stream from $sender.\n";
-    print STDERR "$$: Exiting\n";
+    print STDERR "$$: Exiting without reply\n";
     exit 0;
 }
 $entity->make_multipart;
@@ -292,21 +292,23 @@ print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
 #
 # Check for process limits
 eval {
-    LimitInstances($maxinstances, 43);
+    #LimitInstances($maxinstances, 43);
 };
 if ($@) {
-    print STDERR "$$: Too many instances running ($@).  Sending back error.\n";
+    print STDERR "$$: Too many instances running ($@).  Exiting with tempfail.\n";
+    print "4.7.1 Block Fetch Failed - Temporary Error Please Try Again Later";
+    exit 75;
 
-    my $bodymsg = <<EOF;
-The block fetcher is currently undergoing an abnormal amount of
-activity and is unable to process your request at this time. 
-Please resend your request in 15 minutes or more and we may be
-able to handle your request then.
-EOF
-
-    SendMessage($sender, "Distributed.Net Block Fetcher Failure", $bodymsg);
-    print STDERR "$$: Exiting\n";
-    exit 0;
+#    my $bodymsg = <<EOF;
+#The block fetcher is currently undergoing an abnormal amount of
+#activity and is unable to process your request at this time. 
+#Please resend your request in 15 minutes or more and we may be
+#able to handle your request then.
+#EOF
+#
+#    SendMessage($sender, "Distributed.Net Block Fetcher Failure", $bodymsg);
+#    print STDERR "$$: Exiting\n";
+#    exit 0;
 }
 
 
@@ -357,9 +359,14 @@ INSTRUCTIONS FOLLOW:
 $greeting
 EOF
 
-    SendMessage($sender, "Distributed.Net Block Fetcher Failure", $bodymsg);
-    print STDERR "$$: Exiting\n";
+    print STDERR "$$: Exiting without reply\n";
     exit 0;
+    #print STDERR "$$: Exiting\n";
+    #print "5.7.1 Block Fetch Failed - Incomplete request see http://www.distributed.net/Docs_tutor_network";
+    #exit 65;
+    #SendMessage($sender, "Distributed.Net Block Fetcher Failure", $bodymsg);
+    #print STDERR "$$: Exiting\n";
+    #exit 0;
 }
 
 
@@ -376,9 +383,12 @@ processing of your request.  If the problem persists, please
 contact us so that we can look into resolving the issue.
 EOF
 
-    SendMessage($sender, "Distributed.Net Block Fetcher Failure", $bodymsg);
-    print STDERR "$$: Exiting\n";
-    exit 0;
+    print STDERR "$$: Exiting with tempfail\n";
+    print "4.7.1 Block Fetch Failed - Temporary Error Please Try Again Later";
+    exit 75;
+#    SendMessage($sender, "Distributed.Net Block Fetcher Failure", $bodymsg);
+#    print STDERR "$$: Exiting\n";
+#    exit 0;
 }
 close(TOUCH);
 chmod 0666, $filename;          # sigh
@@ -396,11 +406,14 @@ my $inifilename = "$tmpdir/blocks$$.ini";
 my $clientlog = "$tmpdir/blocks$$.log";
 if (!open(INI, ">$inifilename")) {
     print STDERR "$$: Fetch unable to write ini file.\n";
-    SendMessage($sender, "Distributed.Net Block Fetcher Failure",
-        "A fetch was attempted, but no output was produced.  If the ".
-	"problem persists, please contact us so that we can look into ".
-	"resolving the issue.\n");
-    exit 0;
+    print STDERR "$$: Exiting with tempfail\n";
+    print "4.7.1 Block Fetch Failed - Temporary Error Please Try Again Later";
+    exit 75;
+#    SendMessage($sender, "Distributed.Net Block Fetcher Failure",
+#        "A fetch was attempted, but no output was produced.  If the ".
+#	"problem persists, please contact us so that we can look into ".
+#	"resolving the issue.\n");
+#    exit 0;
 }
 print INI <<EOF;
 [networking]

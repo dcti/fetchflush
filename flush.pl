@@ -34,7 +34,7 @@ my $keyserver = 'us.v29.distributed.net';
 my $maxinstances = 6;       # maximum number of simultaneous instances
 my $tmpdir = '/tmp/blocks';
 my $basedir = '/home/blocks/fetchflush';
-my $dnetcbin = "$basedir/dnetc507";
+my $dnetcbin = "/home/blocks/dnetc519/dnetc";
 
 
 # Redirect our stderr to a log file.
@@ -145,13 +145,15 @@ if (!$entity ) {
 	print STDERR "$$: Exiting\n";
 	exit 0;
     }
-    SendMessage($sender, "Distributed.Net Block Flusher Failure",
-		"We could not parse your message.  Perhaps it wasn't ".
-		"a MIME encapsulated message?\n\n".
-                "INSTRUCTIONS FOLLOW:\n$greeting\nEOF.");
-    print STDERR "$$: Couldn't parse MIME stream from $sender\n";
-    print STDERR "$$: Exiting\n";
+    print STDERR "$$: Exiting without reply\n";
     exit 0;
+#    SendMessage($sender, "Distributed.Net Block Flusher Failure",
+#		"We could not parse your message.  Perhaps it wasn't ".
+#		"a MIME encapsulated message?\n\n".
+#                "INSTRUCTIONS FOLLOW:\n$greeting\nEOF.");
+#    print STDERR "$$: Couldn't parse MIME stream from $sender\n";
+#    print STDERR "$$: Exiting\n";
+#    exit 0;
 }
 $entity->make_multipart;
 
@@ -171,17 +173,19 @@ print STDERR "$$: Processing message from $sender at $nowstring GMT\n";
 #
 # Check for process limits
 eval {
-    LimitInstances($maxinstances, 44);
+    #LimitInstances($maxinstances, 44);
 };
 if ($@) {
-    print STDERR "$$: Too many instances running.  Sending back error.\n";
-    SendMessage($sender, "Distributed.Net Block Flusher Failure",
-        "The block flusher is currently undergoing an abnormal amount of ".
-        "activity and is unable to process your request at this time.  ".
-        "Please resend your request in 15 minutes or more and we may be ".
-	"able to handle your request then.\n\nEOF.");
-    print STDERR "$$: Exiting\n";
-    exit 0;
+    print STDERR "$$: Too many instances running.  Exiting with tempfail.\n";
+    print "4.7.1 Block Flush Failed - Too many instances try again later";
+    exit 75;
+#    SendMessage($sender, "Distributed.Net Block Flusher Failure",
+#        "The block flusher is currently undergoing an abnormal amount of ".
+#        "activity and is unable to process your request at this time.  ".
+#        "Please resend your request in 15 minutes or more and we may be ".
+#	"able to handle your request then.\n\nEOF.");
+#    print STDERR "$$: Exiting\n";
+#    exit 0;
 }
 
 
@@ -298,12 +302,15 @@ for (my $part = 0; $part < $num_parts; $part++)
 # Mail back the results
 if ( !$results || $results !~ m|\S+| )
 {
-    print STDERR "$$: Flush completed with no output.\n";
+    print STDERR "$$: Flush completed with no output. Exiting without reply\n";
+    exit 0;
 
-    SendMessage($sender, "Distributed.Net Block Flusher Failure",
-		"Flush completed with no output.  Perhaps we could not ".
-		"find any MIME-attached files that looked like a buffer ".
-		"file?\n\nINSTRUCTIONS FOLLOW:\n$greeting\nEOF.");
+#    SendMessage($sender, "Distributed.Net Block Flusher Failure",
+#		"Flush completed with no output.  Perhaps we could not ".
+#		"find any MIME-attached files that looked like a buffer ".
+#		"file?\n\nINSTRUCTIONS FOLLOW:\n$greeting\nEOF.");
+#    print STDERR "$$: Exiting\n";
+#    exit 0;
 }
 else
 {
@@ -319,6 +326,6 @@ else
 		"Flush completed with output.  The results are shown ".
 		"at the bottom of this message.\n\n" .
 		"RESULTS FOLLOW:\n$results\nEOF.");
+	print STDERR "$$: Exiting\n";
+	exit 0;
 }
-print STDERR "$$: Exiting\n";
-exit 0;
